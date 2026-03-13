@@ -36,22 +36,22 @@ python scrape_reviews.py --id 4344975
 Output:
 ```
 ============================================================
-🏠 AIRBNB EXPERIENCE REVIEW SCRAPER
+🏠 AIRBNB REVIEW SCRAPER
 ============================================================
 Experience ID: 4344975
 URL: https://www.airbnb.com/experiences/4344975
 
-📄 Đang lấy trang 1... ✅ Lấy được 10 review (tổng: 10)
-📄 Đang lấy trang 2... ✅ Lấy được 10 review (tổng: 20)
+📄 Fetching page 1... ✅ Got 10 reviews (total: 10)
+📄 Fetching page 2... ✅ Got 10 reviews (total: 20)
 ...
-📄 Đang lấy trang 128... ✅ Lấy được 9 review (tổng: 1279)
+📄 Fetching page 128... ✅ Got 9 reviews (total: 1279)
 
-✅ Đã lấy hết tất cả review!
+✅ All reviews fetched!
 
-📊 KẾT QUẢ
-  Tổng review: 1279
-  Thời gian: 135.2 giây
-  Rating trung bình: 4.97/5
+📊 RESULTS
+  Total reviews: 1279
+  Time elapsed: 135.2s
+  Average rating: 4.97/5
 ```
 
 ## 📋 Usage

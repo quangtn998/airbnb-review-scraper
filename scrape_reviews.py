@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Airbnb Experience Review Scraper
-================================
-Tự động lấy tất cả review từ Airbnb Experience bằng internal GraphQL API.
+Airbnb Review Scraper
+=====================
+Automatically scrape all reviews from any Airbnb Experience via internal GraphQL API.
 
 Usage:
     python scrape_reviews.py --url "https://www.airbnb.com/experiences/4344975"
@@ -68,7 +68,7 @@ def extract_experience_id(url: str) -> int:
     match = re.search(r"/experiences/(\d+)", url)
     if match:
         return int(match.group(1))
-    raise ValueError(f"Không tìm thấy experience ID trong URL: {url}")
+    raise ValueError(f"Could not find experience ID in URL: {url}")
 
 
 def fetch_reviews_page(
@@ -196,7 +196,7 @@ def parse_review(edge: dict) -> Optional[dict]:
             "host_response": host_response.strip() if host_response else "",
         }
     except Exception as e:
-        print(f"  ⚠️  Lỗi parse review: {e}")
+        print(f"  ⚠️  Error parsing review: {e}")
         return None
 
 
@@ -221,16 +221,16 @@ def scrape_all_reviews(
     cursor = None
     page = 1
 
-    print(f"\n🚀 Bắt đầu lấy review cho Experience #{experience_id}")
+    print(f"\n🚀 Starting review scrape for Experience #{experience_id}")
     print(f"   Encoded ID: {encoded_id}")
-    print(f"   Sắp xếp: {'Mới nhất' if sort_order == 'DESCENDING' else 'Cũ nhất'} trước")
+    print(f"   Sort order: {'Newest' if sort_order == 'DESCENDING' else 'Oldest'} first")
     if max_reviews:
-        print(f"   Giới hạn: {max_reviews} review")
+        print(f"   Limit: {max_reviews} reviews")
     print()
 
     while True:
         try:
-            print(f"📄 Đang lấy trang {page}...", end=" ", flush=True)
+            print(f"📄 Fetching page {page}...", end=" ", flush=True)
 
             data = fetch_reviews_page(encoded_id, cursor, sort_order)
 
@@ -241,7 +241,7 @@ def scrape_all_reviews(
             page_info = reviews_search.get("pageInfo", {})
 
             if not edges:
-                print("Không có review.")
+                print("No reviews found.")
                 break
 
             # Parse each review
@@ -252,23 +252,23 @@ def scrape_all_reviews(
                     page_reviews.append(review)
 
             all_reviews.extend(page_reviews)
-            print(f"✅ Lấy được {len(page_reviews)} review (tổng: {len(all_reviews)})")
+            print(f"✅ Got {len(page_reviews)} reviews (total: {len(all_reviews)})")
 
             # Check if we've reached the limit
             if max_reviews and len(all_reviews) >= max_reviews:
                 all_reviews = all_reviews[:max_reviews]
-                print(f"\n🎯 Đã đạt giới hạn {max_reviews} review.")
+                print(f"\n🎯 Reached limit of {max_reviews} reviews.")
                 break
 
             # Check pagination
             has_next = page_info.get("hasNextPage", False)
             if not has_next:
-                print(f"\n✅ Đã lấy hết tất cả review!")
+                print(f"\n✅ All reviews fetched!")
                 break
 
             cursor = page_info.get("endCursor")
             if not cursor:
-                print(f"\n⚠️  Không có cursor cho trang tiếp theo.")
+                print(f"\n⚠️  No cursor for next page.")
                 break
 
             page += 1
@@ -279,20 +279,20 @@ def scrape_all_reviews(
         except requests.exceptions.HTTPError as e:
             print(f"\n❌ HTTP Error: {e}")
             if e.response is not None and e.response.status_code == 429:
-                print("   Rate limited! Đợi 10 giây...")
+                print("   Rate limited! Waiting 10 seconds...")
                 time.sleep(10)
                 continue
             break
         except requests.exceptions.ConnectionError as e:
             print(f"\n❌ Connection Error: {e}")
-            print("   Đợi 5 giây rồi thử lại...")
+            print("   Waiting 5 seconds before retrying...")
             time.sleep(5)
             continue
         except Exception as e:
-            print(f"\n❌ Lỗi không mong đợi: {e}")
+            print(f"\n❌ Unexpected error: {e}")
             break
 
-    print(f"\n📊 Tổng kết: Lấy được {len(all_reviews)} review")
+    print(f"\n📊 Summary: Scraped {len(all_reviews)} reviews")
     return all_reviews
 
 
@@ -300,14 +300,14 @@ def save_to_csv(reviews: List[dict], filepath: str) -> None:
     """Save reviews to CSV file."""
     df = pd.DataFrame(reviews)
     df.to_csv(filepath, index=False, encoding="utf-8-sig")
-    print(f"💾 Đã lưu CSV: {filepath} ({len(reviews)} review)")
+    print(f"💾 Saved CSV: {filepath} ({len(reviews)} reviews)")
 
 
 def save_to_json(reviews: List[dict], filepath: str) -> None:
     """Save reviews to JSON file."""
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(reviews, f, ensure_ascii=False, indent=2)
-    print(f"💾 Đã lưu JSON: {filepath} ({len(reviews)} review)")
+    print(f"💾 Saved JSON: {filepath} ({len(reviews)} reviews)")
 
 
 # ============================================================================
@@ -317,50 +317,50 @@ def save_to_json(reviews: List[dict], filepath: str) -> None:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="🏠 Airbnb Experience Review Scraper - Tự động lấy review"
+        description="🏠 Airbnb Review Scraper - Automatically scrape reviews from Airbnb Experiences"
     )
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
         "--url",
         type=str,
-        help="URL của Airbnb Experience (vd: https://www.airbnb.com/experiences/4344975)",
+        help="Airbnb Experience URL (e.g. https://www.airbnb.com/experiences/4344975)",
     )
     group.add_argument(
         "--id",
         type=int,
-        help="ID số của Experience (vd: 4344975)",
+        help="Numeric Experience ID (e.g. 4344975)",
     )
 
     parser.add_argument(
         "--format",
         choices=["csv", "json", "both"],
         default="both",
-        help="Định dạng output (mặc định: both)",
+        help="Output format (default: both)",
     )
     parser.add_argument(
         "--sort",
         choices=["newest", "oldest"],
         default="newest",
-        help="Thứ tự sắp xếp (mặc định: newest)",
+        help="Sort order (default: newest)",
     )
     parser.add_argument(
         "--max",
         type=int,
         default=None,
-        help="Số review tối đa cần lấy (mặc định: tất cả)",
+        help="Maximum number of reviews to fetch (default: all)",
     )
     parser.add_argument(
         "--output-dir",
         type=str,
         default=".",
-        help="Thư mục output (mặc định: thư mục hiện tại)",
+        help="Output directory (default: current directory)",
     )
     parser.add_argument(
         "--delay",
         type=float,
         default=0.5,
-        help="Delay giữa các request (giây, mặc định: 0.5)",
+        help="Delay between requests in seconds (default: 0.5)",
     )
 
     args = parser.parse_args()
@@ -379,7 +379,7 @@ def main():
     sort_order = "DESCENDING" if args.sort == "newest" else "ASCENDING"
 
     print("=" * 60)
-    print("🏠 AIRBNB EXPERIENCE REVIEW SCRAPER")
+    print("🏠 AIRBNB REVIEW SCRAPER")
     print("=" * 60)
     print(f"Experience ID: {experience_id}")
     print(f"URL: https://www.airbnb.com/experiences/{experience_id}")
@@ -395,7 +395,7 @@ def main():
     elapsed = time.time() - start_time
 
     if not reviews:
-        print("\n❌ Không lấy được review nào!")
+        print("\n❌ No reviews were scraped!")
         sys.exit(1)
 
     # Save output
@@ -413,16 +413,16 @@ def main():
     # Summary
     print()
     print("=" * 60)
-    print("📊 KẾT QUẢ")
+    print("📊 RESULTS")
     print("=" * 60)
-    print(f"  Tổng review: {len(reviews)}")
-    print(f"  Thời gian: {elapsed:.1f} giây")
+    print(f"  Total reviews: {len(reviews)}")
+    print(f"  Time elapsed: {elapsed:.1f}s")
 
     # Rating stats
     ratings = [r["rating"] for r in reviews if r.get("rating") is not None]
     if ratings:
         avg_rating = sum(ratings) / len(ratings)
-        print(f"  Rating trung bình: {avg_rating:.2f}/5")
+        print(f"  Average rating: {avg_rating:.2f}/5")
         print(f"  Rating 5⭐: {ratings.count(5)} ({ratings.count(5)/len(ratings)*100:.1f}%)")
         print(f"  Rating 4⭐: {ratings.count(4)} ({ratings.count(4)/len(ratings)*100:.1f}%)")
         print(f"  Rating 3⭐: {ratings.count(3)} ({ratings.count(3)/len(ratings)*100:.1f}%)")
@@ -430,7 +430,7 @@ def main():
         print(f"  Rating 1⭐: {ratings.count(1)} ({ratings.count(1)/len(ratings)*100:.1f}%)")
 
     print()
-    print("✅ Hoàn tất!")
+    print("✅ Done!")
 
 
 if __name__ == "__main__":
