@@ -1,4 +1,4 @@
-# Airbnb Experience Review Scraper 🏠
+# Airbnb Review Scraper 🏠
 
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -18,7 +18,7 @@ Automatically scrape **all reviews** from any Airbnb Experience using Airbnb's i
 ## 📦 Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/airbnb-review-scraper.git
+git clone https://github.com/quangtn998/airbnb-review-scraper.git
 cd airbnb-review-scraper
 pip install -r requirements.txt
 ```

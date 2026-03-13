@@ -33,9 +33,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/YOUR_USERNAME/airbnb-review-scraper"
-Repository = "https://github.com/YOUR_USERNAME/airbnb-review-scraper"
-Issues = "https://github.com/YOUR_USERNAME/airbnb-review-scraper/issues"
+Homepage = "https://github.com/quangtn998/airbnb-review-scraper"
+Repository = "https://github.com/quangtn998/airbnb-review-scraper"
+Issues = "https://github.com/quangtn998/airbnb-review-scraper/issues"
 
 [project.scripts]
 airbnb-reviews = "scrape_reviews:main"
