@@ -23,6 +23,7 @@ env/
 .DS_Store
 
 # Output files (don't commit scraped data)
+output/
 reviews_*.csv
 reviews_*.json
 

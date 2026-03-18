@@ -22,6 +22,8 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 import requests
+from slugify import slugify
+import os
 
 # ============================================================================
 # Constants
@@ -69,6 +71,28 @@ def extract_experience_id(url: str) -> int:
     if match:
         return int(match.group(1))
     raise ValueError(f"Could not find experience ID in URL: {url}")
+
+
+def fetch_experience_name(experience_id: int) -> str:
+    """Fetch the experience title from its Airbnb page."""
+    url = f"https://www.airbnb.com/experiences/{experience_id}"
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        response.raise_for_status()
+        
+        # Simple regex to get title from <title> tag
+        match = re.search(r"<title>(.*?)</title>", response.text)
+        if match:
+            title = match.group(1)
+            # Airbnb titles usually look like: "Title · ★4.93" or "Title - Airbnb"
+            # We want to strip the rating and the " - Airbnb" suffix
+            title = re.sub(r"\s*·\s*★.*", "", title)
+            title = re.sub(r"\s*-\s*Airbnb.*", "", title)
+            return title.strip()
+    except Exception as e:
+        print(f"  ⚠️  Warning: Could not fetch experience name: {e}")
+    
+    return f"Experience {experience_id}"
 
 
 def fetch_reviews_page(
@@ -204,25 +228,23 @@ def scrape_all_reviews(
     experience_id: int,
     sort_order: str = "DESCENDING",
     max_reviews: Optional[int] = None,
-) -> List[dict]:
+) -> Dict:
     """
     Scrape ALL reviews for an Airbnb Experience.
 
-    Args:
-        experience_id: Numeric experience ID
-        sort_order: 'DESCENDING' (newest) or 'ASCENDING' (oldest)
-        max_reviews: Maximum number of reviews to fetch (None = all)
-
     Returns:
-        List of parsed review dicts
+        Dict containing metadata and list of parsed review dicts
     """
     encoded_id = encode_listing_id(experience_id)
     all_reviews = []
     cursor = None
     page = 1
+    
+    experience_name = fetch_experience_name(experience_id)
+    experience_url = f"https://www.airbnb.com/experiences/{experience_id}"
 
-    print(f"\n🚀 Starting review scrape for Experience #{experience_id}")
-    print(f"   Encoded ID: {encoded_id}")
+    print(f"\n🚀 Starting review scrape for: {experience_name}")
+    print(f"   Experience ID: {experience_id}")
     print(f"   Sort order: {'Newest' if sort_order == 'DESCENDING' else 'Oldest'} first")
     if max_reviews:
         print(f"   Limit: {max_reviews} reviews")
@@ -293,21 +315,38 @@ def scrape_all_reviews(
             break
 
     print(f"\n📊 Summary: Scraped {len(all_reviews)} reviews")
-    return all_reviews
+    return {
+        "metadata": {
+            "experience_id": experience_id,
+            "experience_name": experience_name,
+            "experience_url": experience_url,
+            "scraped_at": time.strftime("%Y-%m-%d %H:%M:%S")
+        },
+        "reviews": all_reviews
+    }
 
 
-def save_to_csv(reviews: List[dict], filepath: str) -> None:
-    """Save reviews to CSV file."""
+def save_to_csv(data: dict, filepath: str) -> None:
+    """Save reviews to CSV file with metadata columns."""
+    reviews = data["reviews"]
+    metadata = data["metadata"]
+    
     df = pd.DataFrame(reviews)
+    if not df.empty:
+        # Add metadata columns to each row
+        df.insert(0, "experience_name", metadata["experience_name"])
+        df.insert(1, "experience_url", metadata["experience_url"])
+        df.insert(2, "experience_id", metadata["experience_id"])
+        
     df.to_csv(filepath, index=False, encoding="utf-8-sig")
     print(f"💾 Saved CSV: {filepath} ({len(reviews)} reviews)")
 
 
-def save_to_json(reviews: List[dict], filepath: str) -> None:
-    """Save reviews to JSON file."""
+def save_to_json(data: dict, filepath: str) -> None:
+    """Save reviews and metadata to JSON file."""
     with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(reviews, f, ensure_ascii=False, indent=2)
-    print(f"💾 Saved JSON: {filepath} ({len(reviews)} reviews)")
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print(f"💾 Saved JSON: {filepath} ({len(data['reviews'])} reviews)")
 
 
 # ============================================================================
@@ -353,8 +392,8 @@ def main():
     parser.add_argument(
         "--output-dir",
         type=str,
-        default=".",
-        help="Output directory (default: current directory)",
+        default="output",
+        help="Output directory (default: output)",
     )
     parser.add_argument(
         "--delay",
@@ -391,30 +430,39 @@ def main():
 
     # Scrape
     start_time = time.time()
-    reviews = scrape_all_reviews(experience_id, sort_order, args.max)
+    result = scrape_all_reviews(experience_id, sort_order, args.max)
+    reviews = result["reviews"]
+    metadata = result["metadata"]
     elapsed = time.time() - start_time
 
     if not reviews:
         print("\n❌ No reviews were scraped!")
         sys.exit(1)
 
-    # Save output
+    # Prepare output directory
     output_dir = args.output_dir.rstrip("/")
-    base_name = f"reviews_{experience_id}"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        print(f"📂 Created output directory: {output_dir}")
+
+    # File naming
+    slug = slugify(metadata["experience_name"])
+    base_name = f"reviews_{slug}_{experience_id}"
 
     if args.format in ("csv", "both"):
         csv_path = f"{output_dir}/{base_name}.csv"
-        save_to_csv(reviews, csv_path)
+        save_to_csv(result, csv_path)
 
     if args.format in ("json", "both"):
         json_path = f"{output_dir}/{base_name}.json"
-        save_to_json(reviews, json_path)
+        save_to_json(result, json_path)
 
     # Summary
     print()
     print("=" * 60)
     print("📊 RESULTS")
     print("=" * 60)
+    print(f"  Experience: {metadata['experience_name']}")
     print(f"  Total reviews: {len(reviews)}")
     print(f"  Time elapsed: {elapsed:.1f}s")
 
